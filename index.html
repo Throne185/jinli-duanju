@@ -4,18 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>锦鲤短剧搜索</title>
-
-    <!-- SEO优化 -->
-    <meta name="description" content="锦鲤短剧搜索引擎 - 海量短剧、电影、动漫、综艺资源搜索">
-    <meta name="keywords" content="短剧,电影,动漫,综艺,网盘资源,在线观看">
-
-    <!-- 预加载关键资源 -->
-    <link rel="preconnect" href="https://sxqy1giyb.hb-bkt.clouddn.com">
-    <link rel="dns-prefetch" href="//sxqy1giyb.hb-bkt.clouddn.com">
-
-    <!-- PWA支持 -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
     <!-- 保护样式：初始隐藏所有内容 -->
     <style id="protectionStyle">
         body * {
@@ -967,76 +955,44 @@
     </div>
 
     <script>
-        // 数据地址配置 - 支持多个备用地址
-        const DATA_URLS = [
-            './json.json', // 本地JSON文件（推荐，避免跨域问题）
-            'https://sxqy1giyb.hb-bkt.clouddn.com/json.json', // HTTPS版本
-            'http://sxqy1giyb.hb-bkt.clouddn.com/json.json'
-        ];
+        // 七牛云数据地址
+        const DATA_URL = 'http://sxqy1giyb.hb-bkt.clouddn.com/json.json';
         
         let dramaData = [];
-        let filteredData = []; // 用于存储当前分类的数据
         let currentIndex = 0;
         let autoSlideInterval;
         let isAutoSliding = true;
-        let currentCategory = null; // 当前选中的分类
-        let isLoading = false; // 防止重复加载
         
-        // 加载数据 - 支持多个备用地址和错误重试
+        // 加载数据
         async function loadData() {
-            if (isLoading) return;
-            isLoading = true;
+            try {
+                const response = await fetch(DATA_URL + '?t=' + Date.now());
+                const data = await response.json();
 
-            for (let i = 0; i < DATA_URLS.length; i++) {
-                try {
-                    console.log(`尝试从地址 ${i + 1} 加载数据...`);
-                    const response = await fetch(DATA_URLS[i] + '?t=' + Date.now(), {
-                        method: 'GET',
-                        mode: 'cors', // 明确指定CORS模式
-                        cache: 'no-cache'
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    const data = await response.json();
-
-                    // 支持新旧两种JSON格式
-                    if (data.dramas && Array.isArray(data.dramas)) {
-                        // 新格式：包含dramas数组和footerInfo
-                        dramaData = data.dramas;
-                        updateFooterInfo(data.footerInfo || '欢迎访问锦鲤短剧资源 - VX：Ryzen8888');
-                    } else if (Array.isArray(data)) {
-                        // 旧格式：直接是数组
-                        dramaData = data;
-                        updateFooterInfo('欢迎访问锦鲤短剧资源 - VX：Ryzen8888');
-                    } else {
-                        dramaData = [];
-                    }
-
-                    document.getElementById('loading').style.display = 'none';
-
-                    // 初始化推荐轮播
-                    initCarousel();
-                    startAutoSlide();
-
-                    console.log('数据加载成功，共', dramaData.length, '部短剧');
-                    isLoading = false;
-                    return; // 成功加载，退出循环
-
-                } catch (error) {
-                    console.error(`从地址 ${i + 1} 加载失败:`, error);
-
-                    // 如果是最后一个地址也失败了
-                    if (i === DATA_URLS.length - 1) {
-                        document.getElementById('loading').innerHTML =
-                            '数据加载失败，请检查网络连接或稍后重试<br>' +
-                            '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#667eea;color:white;border:none;border-radius:5px;cursor:pointer;">重新加载</button>';
-                    }
+                // 支持新旧两种JSON格式
+                if (data.dramas && Array.isArray(data.dramas)) {
+                    // 新格式：包含dramas数组和footerInfo
+                    dramaData = data.dramas;
+                    updateFooterInfo(data.footerInfo || '欢迎访问锦鲤短剧资源 - VX：Ryzen8888');
+                } else if (Array.isArray(data)) {
+                    // 旧格式：直接是数组
+                    dramaData = data;
+                    updateFooterInfo('欢迎访问锦鲤短剧资源 - VX：Ryzen8888');
+                } else {
+                    dramaData = [];
                 }
+
+                document.getElementById('loading').style.display = 'none';
+
+                // 初始化推荐轮播
+                initCarousel();
+                startAutoSlide();
+
+                console.log('数据加载成功，共', dramaData.length, '部短剧');
+            } catch (error) {
+                console.error('数据加载失败:', error);
+                document.getElementById('loading').innerHTML = '数据加载失败，请检查网络连接';
             }
-            isLoading = false;
         }
         
         // 初始化轮播
@@ -1234,7 +1190,7 @@
             }
         }
 
-        // 分类功能 - 优化大数据量处理
+        // 分类功能
         function showCategoryResults(category) {
             const resultsDiv = document.getElementById('results');
             const noResultsDiv = document.getElementById('noResults');
@@ -1245,58 +1201,30 @@
                 resultsDiv.innerHTML = '';
                 noResultsDiv.style.display = 'none';
                 categoryHintDiv.style.display = 'block';
-                currentCategory = null;
-                filteredData = [];
                 return;
             }
 
             // 隐藏提示信息
             categoryHintDiv.style.display = 'none';
-            currentCategory = category;
 
-            // 显示加载状态
-            resultsDiv.innerHTML = '<div style="text-align:center;color:#fff;padding:20px;">正在加载数据...</div>';
+            let results = dramaData.filter(drama => {
+                const mediaType = drama['媒体类型'] || '短剧';
+                // 确保数据完整性，过滤掉空数据或无效数据
+                return mediaType === category &&
+                       drama &&
+                       (drama['短剧标题'] || drama.title) &&
+                       (drama['短剧标题'] || drama.title).trim() !== '';
+            });
 
-            // 使用 setTimeout 避免阻塞UI
-            setTimeout(() => {
-                let results = dramaData.filter(drama => {
-                    const mediaType = drama['媒体类型'] || '短剧';
-                    // 确保数据完整性，过滤掉空数据或无效数据
-                    return mediaType === category &&
-                           drama &&
-                           (drama['短剧标题'] || drama.title) &&
-                           (drama['短剧标题'] || drama.title).trim() !== '';
-                });
-
-                filteredData = results;
-
-                if (results.length === 0) {
-                    resultsDiv.innerHTML = '';
-                    noResultsDiv.style.display = 'block';
-                    noResultsDiv.textContent = `暂无${category}内容`;
-                    return;
-                }
-
-                noResultsDiv.style.display = 'none';
-
-                // 分批渲染，避免一次性渲染太多DOM元素
-                renderResultsInBatches(results, 0, 50); // 每批50个
-
-                // 调整卡片大小
-                adjustCardSize(results.length);
-            }, 10);
-        }
-
-        // 分批渲染结果
-        function renderResultsInBatches(results, startIndex, batchSize) {
-            const resultsDiv = document.getElementById('results');
-            const endIndex = Math.min(startIndex + batchSize, results.length);
-
-            if (startIndex === 0) {
-                resultsDiv.innerHTML = ''; // 清空之前的内容
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '';
+                noResultsDiv.style.display = 'block';
+                noResultsDiv.textContent = `暂无${category}内容`;
+                return;
             }
 
-            const batchHtml = results.slice(startIndex, endIndex).map(drama => `
+            noResultsDiv.style.display = 'none';
+            resultsDiv.innerHTML = results.map(drama => `
                 <div class="result-card" onclick="showDramaDetail(${dramaData.indexOf(drama)})">
                     <div class="result-title">
                         <span class="media-type ${drama['媒体类型'] || '短剧'}">${getMediaTypeDisplay(drama['媒体类型'] || '短剧')}</span>
@@ -1310,14 +1238,8 @@
                 </div>
             `).join('');
 
-            resultsDiv.insertAdjacentHTML('beforeend', batchHtml);
-
-            // 如果还有更多数据，继续渲染下一批
-            if (endIndex < results.length) {
-                setTimeout(() => {
-                    renderResultsInBatches(results, endIndex, batchSize);
-                }, 10); // 短暂延迟，让UI有时间响应
-            }
+            // 调整卡片大小
+            adjustCardSize(results.length);
         }
 
         // 事件监听
