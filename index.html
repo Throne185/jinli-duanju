@@ -13,9 +13,28 @@
     <link rel="preconnect" href="https://sxqy1giyb.hb-bkt.clouddn.com">
     <link rel="dns-prefetch" href="//sxqy1giyb.hb-bkt.clouddn.com">
 
+    <!-- Favicon和图标 -->
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+
+    <!-- Apple Touch图标 -->
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="icons/icon-384x384.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512x512.png">
+
     <!-- PWA支持 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="锦鲤短剧">
     <!-- 保护样式：初始隐藏所有内容 -->
     <style id="protectionStyle">
         body * {
@@ -692,11 +711,12 @@
         /* 一键置顶按钮 */
         .back-to-top {
             position: fixed;
-            bottom: 80px;
+            bottom: 120px; /* 向上移动，避免遮挡底部信息栏 */
             right: 20px;
             width: 50px;
             height: 50px;
             background: linear-gradient(45deg, #667eea, #764ba2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             cursor: pointer;
             display: flex;
@@ -807,19 +827,24 @@
 
             /* 移动端置顶按钮优化 */
             .back-to-top {
-                bottom: 80px; /* 向上移动，避免与底部信息栏重叠 */
-                right: 15px;
-                width: 45px;
-                height: 45px;
+                bottom: 100px; /* 向上移动，避免遮挡底部信息栏 */
+                right: 20px; /* 增加右边距，避免贴边 */
+                width: 50px;
+                height: 50px;
                 /* 半透明背景，减少视觉干扰 */
-                background: linear-gradient(45deg, rgba(102,126,234,0.85), rgba(118,75,162,0.85));
+                background: linear-gradient(45deg, rgba(102,126,234,0.9), rgba(118,75,162,0.9));
+                border: 2px solid rgba(255, 255, 255, 0.5); /* 增加描边透明度 */
                 backdrop-filter: blur(10px);
                 /* 确保可以遮挡内容，避免页面偏移 */
                 z-index: 1001;
+                /* 添加更明显的阴影 */
+                box-shadow: 0 6px 25px rgba(102,126,234,0.6), 0 0 0 1px rgba(255,255,255,0.2);
             }
 
             .back-to-top:hover {
                 background: linear-gradient(45deg, rgba(118,75,162,0.95), rgba(102,126,234,0.95));
+                border-color: rgba(255, 255, 255, 0.7);
+                transform: translateY(-3px) scale(1.05);
             }
 
             .results-container {
@@ -908,7 +933,7 @@
         
         <!-- 今日推荐板块 -->
         <div class="recommend-section">
-            <h2 class="section-title">🎬 今日更新TOP 🔥</h2>
+            <h2 class="section-title" id="sectionTitle">🎬 今日更新TOP 🔥</h2>
             <div class="carousel-container">
                 <div class="carousel-wrapper" id="carouselWrapper">
                     <!-- 推荐内容将通过JavaScript动态生成 -->
@@ -981,6 +1006,7 @@
         let isAutoSliding = true;
         let currentCategory = null; // 当前选中的分类
         let isLoading = false; // 防止重复加载
+        let isSearchMode = false; // 标记当前是否为搜索模式
         
         // 加载数据 - 支持多个备用地址和错误重试
         async function loadData() {
@@ -1003,14 +1029,19 @@
                     const data = await response.json();
 
                     // 支持新旧两种JSON格式
+                    console.log('加载的JSON数据:', data); // 调试信息
                     if (data.dramas && Array.isArray(data.dramas)) {
-                        // 新格式：包含dramas数组和footerInfo
+                        // 新格式：包含dramas数组、footerInfo和updateTime
                         dramaData = data.dramas;
+                        console.log('检测到新格式JSON，updateTime:', data.updateTime); // 调试信息
                         updateFooterInfo(data.footerInfo || '欢迎访问锦鲤短剧资源 - VX：Ryzen8888');
+                        updateSectionTitle(data.updateTime || '');
                     } else if (Array.isArray(data)) {
                         // 旧格式：直接是数组
+                        console.log('检测到旧格式JSON'); // 调试信息
                         dramaData = data;
                         updateFooterInfo('欢迎访问锦鲤短剧资源 - VX：Ryzen8888');
+                        updateSectionTitle('');
                     } else {
                         dramaData = [];
                     }
@@ -1085,11 +1116,7 @@
                 </div>
             `).join('');
 
-            // 更新标题（不显示具体数量）
-            const sectionTitle = document.querySelector('.section-title');
-            if (sectionTitle) {
-                sectionTitle.innerHTML = `🎬 今日更新TOP 🔥`;
-            }
+            // 标题会通过updateSectionTitle函数更新，这里不需要重复设置
         }
         
         // 自动轮播
@@ -1144,6 +1171,9 @@
             const noResultsDiv = document.getElementById('noResults');
             const categoryHintDiv = document.getElementById('categoryHint');
 
+            // 设置为搜索模式
+            isSearchMode = true;
+
             // 隐藏提示信息
             categoryHintDiv.style.display = 'none';
 
@@ -1184,7 +1214,7 @@
                     <div class="result-info">📺 集数: ${drama['集数信息'] || drama.episodes || '未知'}</div>
                     <div class="result-info">🎭 主演: ${drama['主演信息'] || drama.actors || '未知'}</div>
                     <div class="result-link-group">
-                        ${generateLinkButtons(drama)}
+                        ${generateLinkButtons(drama, true)}
                     </div>
                 </div>
             `).join('');
@@ -1239,6 +1269,9 @@
             const resultsDiv = document.getElementById('results');
             const noResultsDiv = document.getElementById('noResults');
             const categoryHintDiv = document.getElementById('categoryHint');
+
+            // 设置为分类浏览模式
+            isSearchMode = false;
 
             // 如果没有选择分类，显示提示信息
             if (!category) {
@@ -1305,7 +1338,7 @@
                     <div class="result-info">📺 集数: ${drama['集数信息'] || drama.episodes || '未知'}</div>
                     <div class="result-info">🎭 主演: ${drama['主演信息'] || drama.actors || '未知'}</div>
                     <div class="result-link-group">
-                        ${generateLinkButtons(drama)}
+                        ${generateLinkButtons(drama, isSearchMode)}
                     </div>
                 </div>
             `).join('');
@@ -1409,6 +1442,23 @@
             }
         }
 
+        // 更新标题中的更新时间
+        function updateSectionTitle(updateTime) {
+            const sectionTitle = document.getElementById('sectionTitle');
+            console.log('更新标题，接收到的更新时间:', updateTime); // 调试信息
+            if (sectionTitle) {
+                if (updateTime && updateTime.trim()) {
+                    // 如果有更新时间，显示具体日期，格式为"X月X日更新"
+                    sectionTitle.innerHTML = `🎬 ${updateTime}更新 🔥`;
+                    console.log('标题已更新为:', sectionTitle.innerHTML); // 调试信息
+                } else {
+                    // 如果没有更新时间，显示默认标题
+                    sectionTitle.innerHTML = `🎬 今日更新TOP 🔥`;
+                    console.log('使用默认标题'); // 调试信息
+                }
+            }
+        }
+
         // 获取媒体类型显示
         function getMediaTypeDisplay(type) {
             const typeMap = {
@@ -1423,7 +1473,11 @@
         }
 
         // 生成链接按钮（搜索结果用）
-        function generateLinkButtons(drama) {
+        function generateLinkButtons(drama, showLinks = true) {
+            if (!showLinks) {
+                return ''; // 不显示任何内容
+            }
+
             const baiduLink = drama['百度链接'] || drama.baiduLink || '';
             const quarkLink = drama['夸克链接'] || drama.quarkLink || '';
 
